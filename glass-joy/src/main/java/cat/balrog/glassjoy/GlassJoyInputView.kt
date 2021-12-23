@@ -56,26 +56,22 @@ class GlassJoyInputView @JvmOverloads constructor(
 
     private val gestureDetector = GestureDetector(context, listener)
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
-            _inputs.value = InputGesture.HardwareButton
-        }
-        return super.onKeyDown(keyCode, event)
+    init {
+        focusable = FOCUSABLE
+        isFocusableInTouchMode = true
+        isClickable = true
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
-            _inputs.value = InputGesture.HardwareButtonHeld
-        }
+        _inputs.value = InputGesture.HardwareButtonHeld
         return super.onKeyLongPress(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
-            if (_inputs.value in listOf(InputGesture.HardwareButton, InputGesture.HardwareButtonHeld)) {
-                _inputs.value = null
-            }
+        if (_inputs.value != InputGesture.HardwareButtonHeld) {
+            _inputs.value = InputGesture.HardwareButton
         }
+        _inputs.value = null
         return super.onKeyUp(keyCode, event)
     }
 

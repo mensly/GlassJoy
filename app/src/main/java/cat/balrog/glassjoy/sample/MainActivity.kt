@@ -17,7 +17,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.input.inputs.asLiveData().observe(this) {
             if (it == null) return@observe
-            binding.text.text = listOf(it, binding.text.text).joinToString("\n")
+            if (it == InputGesture.SwipeDown) {
+                finish()
+            } else {
+                binding.text.text = listOf(it, binding.text.text).joinToString("\n")
+            }
         }
     }
 }
