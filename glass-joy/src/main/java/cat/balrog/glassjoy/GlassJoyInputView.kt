@@ -5,15 +5,11 @@ import android.content.Context
 import android.content.res.Resources
 import android.os.SystemClock
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import androidx.annotation.Keep
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.tan
@@ -46,8 +42,13 @@ class GlassJoyInputView @JvmOverloads constructor(
         private const val NO_TOUCH = Long.MIN_VALUE
         private val ANGLE_THRESHOLD = tan(PI / 4)
     }
-    private val _inputs = MutableStateFlow<InputGesture?>(null)
-    val inputs: Flow<InputGesture?> get() = _inputs
+    private var input: InputGesture? = null
+        set(value) {
+            field = value
+            inputListener(value)
+        }
+
+    var inputListener: (InputGesture?)->Unit = {}
     var deadZone = 16.toPx
     var deadTime = 300L
     private var joyCenterX = 0f
@@ -62,8 +63,8 @@ class GlassJoyInputView @JvmOverloads constructor(
         }
 
         override fun onDoubleTap(e: MotionEvent?): Boolean {
-            _inputs.value = InputGesture.DoubleTap
-            _inputs.value = null
+            input = InputGesture.DoubleTap
+            input = null
             return true
         }
 
@@ -79,9 +80,9 @@ class GlassJoyInputView @JvmOverloads constructor(
                 if (deltaX != 0f) abs(deltaY / deltaX).toDouble() else Double.MAX_VALUE
 
             if (tan > ANGLE_THRESHOLD) {
-                _inputs.value = if (deltaY > 0) InputGesture.SwipeDown else InputGesture.SwipeUp
+                input = if (deltaY > 0) InputGesture.SwipeDown else InputGesture.SwipeUp
             } else {
-                _inputs.value = if (deltaX > 0) InputGesture.SwipeRight else InputGesture.SwipeLeft
+                input = if (deltaX > 0) InputGesture.SwipeRight else InputGesture.SwipeLeft
             }
             _inputs.value = null
             return true
@@ -97,22 +98,22 @@ class GlassJoyInputView @JvmOverloads constructor(
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean {
-        _inputs.value = InputGesture.HardwareButtonHeld
+        input = InputGesture.HardwareButtonHeld
         return super.onKeyLongPress(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (_inputs.value != InputGesture.HardwareButtonHeld) {
-            _inputs.value = InputGesture.HardwareButton
+        if (input != InputGesture.HardwareButtonHeld) {
+            input = InputGesture.HardwareButton
         }
-        _inputs.value = null
+        input = null
         return super.onKeyUp(keyCode, event)
     }
 
     override fun performClick(): Boolean {
         super.performClick()
-        _inputs.value = InputGesture.Tap
-        _inputs.value = null
+        input = InputGesture.Tap
+        input = null
         return true
     }
 
@@ -127,7 +128,7 @@ class GlassJoyInputView @JvmOverloads constructor(
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     if (joystickActive) {
-                        _inputs.value = InputGesture.JoyNeutral
+                        input = InputGesture.JoyNeutral
                     }
                     touchDown = NO_TOUCH
                 }
@@ -136,12 +137,12 @@ class GlassJoyInputView @JvmOverloads constructor(
                     val dY = event.y - joyCenterY
                     if (joystickActive) {
                         if (abs(dX) > abs(dY) && abs(dX) > deadZone) {
-                            _inputs.value =
+                            input =
                                 if (dX > 0) InputGesture.JoyRight else InputGesture.JoyLeft
                         } else if (abs(dY) > deadZone) {
-                            _inputs.value = if (dY > 0) InputGesture.JoyDown else InputGesture.JoyUp
+                            input = if (dY > 0) InputGesture.JoyDown else InputGesture.JoyUp
                         } else {
-                            _inputs.value = InputGesture.JoyNeutral
+                            input = InputGesture.JoyNeutral
                         }
                     } else if (abs(dX) > deadZone || abs(dY) > deadZone) {
                         touchDown = NO_TOUCH
@@ -149,8 +150,8 @@ class GlassJoyInputView @JvmOverloads constructor(
                 }
             }
         } else if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN && joystickActive) {
-            _inputs.value = InputGesture.Tap
-            _inputs.value = null
+            input = InputGesture.Tap
+            input = null
         }
         gestureDetector.onTouchEvent(event)
         return true
