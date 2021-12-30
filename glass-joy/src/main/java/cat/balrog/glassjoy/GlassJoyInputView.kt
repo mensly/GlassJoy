@@ -83,6 +83,7 @@ class GlassJoyInputView @JvmOverloads constructor(
             } else {
                 _inputs.value = if (deltaX > 0) InputGesture.SwipeRight else InputGesture.SwipeLeft
             }
+            _inputs.value = null
             return true
         }
     }
