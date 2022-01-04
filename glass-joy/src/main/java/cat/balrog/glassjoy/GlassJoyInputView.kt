@@ -14,20 +14,20 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.tan
 
-enum class InputGesture {
-    JoyUp,
-    JoyDown,
-    JoyLeft,
-    JoyRight,
+enum class InputGesture(val keyCode: Int? = null) {
+    JoyUp(KeyEvent.KEYCODE_DPAD_UP),
+    JoyDown(KeyEvent.KEYCODE_DPAD_DOWN),
+    JoyLeft(KeyEvent.KEYCODE_DPAD_LEFT),
+    JoyRight(KeyEvent.KEYCODE_DPAD_RIGHT),
     JoyNeutral,
-    Tap,
-    DoubleTap,
-    SwipeUp,
-    SwipeDown,
-    SwipeLeft,
-    SwipeRight,
+    Tap(KeyEvent.KEYCODE_SPACE),
+    DoubleTap(KeyEvent.KEYCODE_ENTER),
+    SwipeUp(KeyEvent.KEYCODE_NUMPAD_8),
+    SwipeDown(KeyEvent.KEYCODE_NUMPAD_2),
+    SwipeLeft(KeyEvent.KEYCODE_NUMPAD_4),
+    SwipeRight(KeyEvent.KEYCODE_NUMPAD_6),
     HardwareButton,
-    HardwareButtonHeld,
+    HardwareButtonHeld(KeyEvent.KEYCODE_ESCAPE),
 }
 
 val Number.toPx get() = TypedValue.applyDimension(
@@ -44,13 +44,18 @@ class GlassJoyInputView @JvmOverloads constructor(
     }
     private var input: InputGesture? = null
         set(value) {
+            val oldValue = field
             field = value
-            inputListener(value)
+            if (oldValue != value) {
+                inputListener(oldValue, value)
+            }
         }
 
-    var inputListener: (InputGesture?)->Unit = {}
+    var inputListener: (oldValue: InputGesture?, newValue: InputGesture?)->Unit = { _,_ -> }
     var deadZone = 16.toPx
     var deadTime = 300L
+    var interceptingTouch = true
+    var buttonTogglesTouch = true
     private var joyCenterX = 0f
     private var joyCenterY = 0f
     private var touchDown = NO_TOUCH
@@ -84,7 +89,7 @@ class GlassJoyInputView @JvmOverloads constructor(
             } else {
                 input = if (deltaX > 0) InputGesture.SwipeRight else InputGesture.SwipeLeft
             }
-            _inputs.value = null
+            input = null
             return true
         }
     }
@@ -98,15 +103,24 @@ class GlassJoyInputView @JvmOverloads constructor(
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean {
-        input = InputGesture.HardwareButtonHeld
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            input = InputGesture.HardwareButtonHeld
+            return true
+        }
         return super.onKeyLongPress(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (input != InputGesture.HardwareButtonHeld) {
-            input = InputGesture.HardwareButton
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            if (input != InputGesture.HardwareButtonHeld) {
+                input = InputGesture.HardwareButton
+            }
+            input = null
+            if (buttonTogglesTouch) {
+                interceptingTouch = !interceptingTouch
+            }
+            return true
         }
-        input = null
         return super.onKeyUp(keyCode, event)
     }
 
@@ -119,6 +133,7 @@ class GlassJoyInputView @JvmOverloads constructor(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!interceptingTouch) return false
         if (event.actionIndex == 0) {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
